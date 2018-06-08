@@ -1,0 +1,101 @@
+#server（Ubuntu）：
+
+# encoding=utf-8    #编码方式
+import socket   #导入Python中socket模块
+import struct  #导入Python中struct模块
+
+HOST = '192.168.221.133'  #server端的ip地址
+PORT = 4321   #使用的端口号
+BUFFER_SIZE = 1024  #缓冲区大小为1024B，用于接收文件
+HEAD_STRUCT = '128sIq'   #格式字符串：相当于定义了长度为128的文件名字符数组，int型的文件名长度以及long long型的文件大小
+info_size = struct.calcsize(HEAD_STRUCT)  #计算格式字符串所对应的长度，长度为144
+
+
+def unpack_file_info(file_info):
+    file_name, file_name_len, file_size = struct.unpack(HEAD_STRUCT, file_info)  #struct.unpack()函数将字节流转换成python数据类型，返回的是一个元组（ file_name, file_name_len, file_size）。第一个参数是读取内容的格式化字符串，第二个参数是从文件里读取到的指定长度的内容
+    file_name = file_name[:file_name_len]  #获得文件名
+    return file_name, file_size
+
+
+def recv_file():
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  #创建套接字，名为“sock”，AF_INET表示使用IPv4网络，SOCK_STREAM则表示创建的是TCP类型的套接字
+        server_address = (HOST, PORT)
+        sock.bind(server_address)  #将端口号4321与此地址服务器的套接字绑定在一起
+	print 'Waiting connection'  #提示用户server端正等待连接
+        sock.listen(1)   #服务器进入监听状态，请求连接的最大数量为1
+        client_socket, client_address = sock.accept()  #有服务器请求连接时，创建一个新的套接字，称为client_socket，且源地址被放到变量client_address中
+        print "Connected %s successfully" % str(client_address)   #打印出成功连接的地址信息
+
+        file_info_package = client_socket.recv(info_size)  #对端文件到达时，放置在file_info_package中，参数info_size为读取内容的长度
+        file_name, file_size = unpack_file_info(file_info_package)  #调用unpack_file_info()，返回值赋给变量file_name, file_size
+
+        recved_size = 0
+        with open(file_name, 'wb') as fw:  #以写入（‘wb’）为目的打开/新建文件。如果该文件已存在原有内容会被删除。如果文件不存在，则会创建新文件。
+            while recved_size < file_size:  #将文件内容写入
+                remained_size = file_size - recved_size
+                recv_size = BUFFER_SIZE if remained_size > BUFFER_SIZE else remained_size  #如果仍有大于1024B的内容未传输则传输1024B的内容，若小于则把剩余的传输
+                recv_file = client_socket.recv(recv_size)  #接收相应大小的字节数据
+                recved_size += recv_size  #更新已写入的文件字节大小
+                fw.write(recv_file)  #将数据写入文件
+            print 'Received successfully'  #提示用户传输成功
+    except socket.errno, e:   #出现错误及其错误的编号
+        print "Socket error: %s" % str(e)   #输出错误的错误编号
+    finally:
+        sock.close()  #关闭套接字
+
+if __name__ == '__main__':
+    recv_file()  
+    
+   
+#Client(Windows)
+
+# encoding=utf-8  #编码方式
+import socket  #导入python中套接字模块
+import os  #导入os模块
+import struct  #导入python中struct模块
+
+#同server端
+HOST = '192.168.221.133'
+PORT = 4321
+BUFFER_SIZE = 1024
+HEAD_STRUCT = '128sIq'
+
+
+
+def get_file_info(file_path):
+    file_name = os.path.basename(file_path)  #返回路径中最后的文件名，即获取需要传输的文件名
+    file_name_len = len(file_name)  #返回文件名长度
+    file_size = os.path.getsize(file_path)  #返回文件的大小
+    return file_name, file_name_len, file_size
+
+
+def send_file(file_path):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #创建套接字，名为“sock”，AF_INET表示使用IPv4网络，SOCK_STREAM则表示创建的是TCP类型的套接字
+    server_address = (HOST, PORT)
+
+    file_name, file_name_len, file_size= get_file_info(file_path)  #调用get_file_info()函数，并返回值给file_name, file_name_len, file_size
+    file_head = struct.pack(HEAD_STRUCT, file_name, file_name_len, file_size)  #将Python的值根据格式符HEAD_STRUCT转换为字符串（字节数组）
+
+    try:
+        print "Start connect"  #开始连接
+        sock.connect(server_address)   与该地址建立连接
+        sock.send(file_head)  #发送file_head字符数组（包含file_name, file_name_len, file_size）到server端
+        sent_size = 0
+
+        with open(file_path) as fr:  #打开该文件开始传输
+            while sent_size < file_size:
+                remained_size = file_size - sent_size
+                send_size = BUFFER_SIZE if remained_size > BUFFER_SIZE else remained_size  #如果仍有大于1024B的内容未传输则传输1024B的内容，若小于则把剩余的传输
+                send_file = fr.read(send_size)  #读取上述字节数的文件数据
+                sent_size += send_size  #更新已传输的值
+                sock.send(send_file)  #传输相应字节数的文件数据
+    except socket.errno, e:
+        print "Socket error: %s" % str(e)  #出现错误则打印错误的编号
+    finally:
+        sock.close()   #关闭套接字
+        print "Closing connect"
+
+if __name__ == '__main__':
+    file_path = raw_input('Please input file path:')  #输入需要传输的文件的路径
+    send_file(file_path)
