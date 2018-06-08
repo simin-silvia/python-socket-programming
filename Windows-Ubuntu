@@ -1,0 +1,26 @@
+#Server(Ubuntu)
+# -*- coding: utf-8 -*-   #编码方式
+from socket import *   #socket模块
+
+serverSocket = socket(AF_INET,SOCK_STREAM)    #创建套接字，名为“serverSocket”，AF_INET表示使用IPv4网络，SOCK_STREAM则表示创建的是TCP类型的套接字
+serverSocket.bind(('192.168.221.133',3210)) #将端口号3210与此地址服务器的套接字绑定在一起
+serverSocket.listen(1)  #服务器进入监听状态，请求连接的最大数量为1
+print 'Waiting...'  #等待连接
+con,addr=serverSocket.accept()  #有服务器请求连接时，创建一个新的套接字，称为con，且源地址被放到变量addr中
+sen = con.recv(1024)  #对端字符到达时，放置在字符串sen中，参数1024为缓存长度
+print 'Sentence is:', sen  #打印出接收到的字符串
+con.send('bye!')   #向对端发送字符串
+con.close()	#关闭套接字
+
+
+
+#Client(Windows)
+from socket import *    #socket模块
+
+clientSocket = socket(AF_INET,SOCK_STREAM)  #同server，创建套接字
+clientSocket.connect(('192.168.221.133',3210))  #发起客户和服务器之间的tcp连接
+sen = raw_input('input sentence:')   #raw_input为python的内置功能，客户在‘input sentence’的提示下输入字符，并被放入变量sen中
+clientSocket.send(sen)  #通过客户套接字并进入tcp连接发送字符串sen
+mod = clientSocket.recv(1024)  #接收来自server端的字符，存入mod中。
+print 'From Server:', mod  #打印出接收到的字符
+clientSocket.close()   #关闭套接字
