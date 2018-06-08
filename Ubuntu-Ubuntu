@@ -1,0 +1,25 @@
+#Server
+
+from socket import *   #socket模块
+s = socket(AF_INET,SOCK_STREAM)    #创建套接字，名为“s”，AF_INET表示使用IPv4网络，SOCK_STREAM则表示创建的是TCP类型的套接字
+s.bind(('127.0.0.1',1234)) #将端口号1234与本机的套接字绑定在一起，地址为本地回送地址
+s.listen(5)  #服务器进入监听状态，请求连接的最大数量为5
+cs,address=s.accept()  #有服务器请求连接时，创建一个新的套接字，称为cs，且源地址被放到变量address中
+print 'Ready to receive data'
+data = cs.recv(1024)  #对端字符到达时，放置在字符串data中，参数1024为缓存长度
+print 'the data is:',data  #打印出接收到的字符串
+cs.send('bye')   #向对端发送字符串
+cs.close()	#关闭套接字
+
+
+
+#Client
+
+from socket import *    #socket模块
+s = socket(AF_INET,SOCK_STREAM)  #同server，创建套接字
+s.connect(('127.0.0.1',1234))  #发起客户和服务器之间的tcp连接
+data = raw_input('input data:')   #raw_input为python的内置功能，客户在‘input data’的提示下输入字符，并被放入变量data中
+s.send(data)  #通过客户套接字并进入tcp连接发送字符串data
+sr = s.recv(1024)  #接收来自server端的字符，存入sr中。
+print sr  #打印出接收到的字符
+s.close()   #关闭套接字
